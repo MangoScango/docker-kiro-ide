@@ -1,24 +1,21 @@
 # syntax=docker/dockerfile:1
+# Kiro IDE in the browser — fork of linuxserver/docker-vscode with VS Code swapped for Kiro.
 
 FROM ghcr.io/linuxserver/baseimage-selkies:debiantrixie
 
-# set version label
 ARG BUILD_DATE
-ARG CODE_VERSION
 ARG VERSION
-LABEL build_version="Linuxserver.io version:- ${VERSION} Build-date:- ${BUILD_DATE}"
-LABEL maintainer="thelamer"
+# Pin a Kiro release (e.g. 1.1.70); leave empty to pull the current stable.
+ARG KIRO_VERSION
+ARG TARGETARCH
+LABEL build_version="Kiro IDE version:- ${VERSION} Build-date:- ${BUILD_DATE}" \
+      org.opencontainers.image.source="https://github.com/MangoScango/docker-kiro-ide"
 
-# title
-ENV TITLE="VS Code" \
+ENV TITLE="Kiro" \
     NO_GAMEPAD=true \
     PIXELFLUX_WAYLAND=true
 
 RUN \
-  echo "**** add icon ****" && \
-  curl -o \
-    /usr/share/selkies/www/icon.png \
-    https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/vscode-logo.png && \
   echo "**** install packages ****" && \
   apt-get update && \
   apt-get install --no-install-recommends -y \
@@ -27,33 +24,37 @@ RUN \
     chromium-l10n \
     git \
     gnome-keyring \
+    jq \
     ssh-askpass \
     stterm && \
-  echo "**** install code ****" && \
-  if [ -z ${CODE_VERSION+x} ]; then \
-    CODE_VERSION=$(curl -sL https://update.code.visualstudio.com/api/releases/stable \
-    | awk -F'"' '{print $2}'); \
+  echo "**** install kiro ****" && \
+  case "${TARGETARCH:-amd64}" in \
+    amd64) KIRO_ARCH=x64 ;; \
+    arm64) KIRO_ARCH=arm64 ;; \
+    *) echo "unsupported arch ${TARGETARCH}" && exit 1 ;; \
+  esac && \
+  if [ -z "${KIRO_VERSION}" ]; then \
+    KIRO_URL=$(curl -fsSL "https://prod.download.desktop.kiro.dev/stable/metadata-linux-${KIRO_ARCH}-deb-stable.json" \
+      | jq -r '.releases[].updateTo.url | select(endswith(".deb"))' | head -n1); \
+  else \
+    KIRO_URL="https://prod.download.desktop.kiro.dev/releases/stable/linux-${KIRO_ARCH}/signed/${KIRO_VERSION}/deb/kiro-ide-${KIRO_VERSION}-stable-linux-${KIRO_ARCH}.deb"; \
   fi && \
-  curl -o \
-    /tmp/code.deb -L \
-    "https://update.code.visualstudio.com/${CODE_VERSION}/linux-deb-x64/stable" && \
-  DEBIAN_FRONTEND=noninteractive apt install --no-install-recommends -y /tmp/code.deb && \
+  echo "Downloading ${KIRO_URL}" && \
+  curl -fsSL -o /tmp/kiro.deb "${KIRO_URL}" && \
+  DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y /tmp/kiro.deb && \
   echo "**** container tweaks ****" && \
-  mv \
-    /usr/bin/chromium \
-    /usr/bin/chromium-real && \
-  printf "Linuxserver.io version: ${VERSION}\nBuild-date: ${BUILD_DATE}" > /build_version && \
+  cp /usr/share/pixmaps/code-oss.png /usr/share/selkies/www/icon.png && \
+  mv /usr/bin/chromium /usr/bin/chromium-real && \
+  # deb symlinks /usr/bin/kiro -> real binary; remove so COPY doesn't clobber the target
+  rm -f /usr/bin/kiro && \
+  printf "Kiro IDE version: ${VERSION}\nBuild-date: ${BUILD_DATE}" > /build_version && \
   echo "**** cleanup ****" && \
   apt-get autoclean && \
-  rm -rf \
-    /var/lib/apt/lists/* \
-    /var/tmp/* \
-    /tmp/*
+  rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
-# add local files
+# add local files (wrappers + openbox autostart/menu)
 COPY /root /
 
-# ports and volumes
 EXPOSE 3001
 
 VOLUME /config

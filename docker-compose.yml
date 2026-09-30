@@ -1,0 +1,20 @@
+services:
+  kiro:
+    image: ghcr.io/mangoscango/docker-kiro-ide:latest
+    # build: .   # uncomment to build locally instead of pulling
+    container_name: kiro
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      # - CUSTOM_USER=admin   # basic auth — set these if exposed beyond localhost
+      # - PASSWORD=changeme
+    volumes:
+      - ./config:/config
+    ports:
+      - 3000:3000
+      - 3001:3001
+    shm_size: "1gb"
+    restart: unless-stopped
