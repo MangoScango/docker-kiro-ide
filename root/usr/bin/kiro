@@ -1,6 +1,6 @@
 #! /bin/bash
 
-BIN=/usr/share/code/bin/code
+BIN=/usr/share/kiro/bin/kiro
 
 # Wayland check
 if [ "${PIXELFLUX_WAYLAND,,}" == "true" ]; then

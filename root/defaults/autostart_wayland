@@ -2,7 +2,8 @@
 
 gio mime x-scheme-handler/http chromium.desktop
 gio mime x-scheme-handler/https chromium.desktop
+gio mime x-scheme-handler/kiro kiro-url-handler.desktop
 gio mime application/x-terminal-emulator foot.desktop
 gio mime inode/directory caja-browser.desktop
 
-dbus-launch code
+dbus-launch kiro
